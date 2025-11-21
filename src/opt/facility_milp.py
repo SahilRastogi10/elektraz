@@ -30,9 +30,10 @@ def build_milp(cands: pd.DataFrame,
 
     # Decision vars
     m.open = pyo.Var(m.I, domain=pyo.Binary)
-    m.ports = pyo.Var(m.I, domain=pyo.Integers, bounds=(params["ports_min"], params["ports_max"]))
-    m.pv_kw = pyo.Var(m.I, domain=pyo.NonNegativeReals, bounds=(params["pv_kw_min"], params["pv_kw_max"]))
-    m.storage_kwh = pyo.Var(m.I, domain=pyo.NonNegativeReals, bounds=(params["storage_kwh_min"], params["storage_kwh_max"]))
+    # Use 0 as lower bound for ports/pv/storage - constraints enforce minimums only when site is open
+    m.ports = pyo.Var(m.I, domain=pyo.Integers, bounds=(0, params["ports_max"]))
+    m.pv_kw = pyo.Var(m.I, domain=pyo.NonNegativeReals, bounds=(0, params["pv_kw_max"]))
+    m.storage_kwh = pyo.Var(m.I, domain=pyo.NonNegativeReals, bounds=(0, params["storage_kwh_max"]))
     m.assign = pyo.Var(m.I, m.J, domain=pyo.NonNegativeReals, bounds=(0,1))
 
     # Constants
@@ -73,11 +74,31 @@ def build_milp(cands: pd.DataFrame,
         return sum(m.assign[i,j] for i in m.I) <= 1.0
     m.AssignSum = pyo.Constraint(m.J, rule=assign_sum)
 
-    # Station capacity sanity: predicted load per site vs total kW capacity
-    # (This acts as a soft constraint since pred_daily_kwh enters objective; here we cap ports if extremely small sites)
+    # Linking constraints: ensure closed sites have 0 for ports/pv/storage (no cost)
+    # and open sites meet minimum requirements
+
+    # Ports: min when open, 0 when closed
     def min_ports_when_open(m, i):
         return m.ports[i] >= params["ports_min"] * m.open[i]
     m.MinPorts = pyo.Constraint(m.I, rule=min_ports_when_open)
+
+    def max_ports_when_closed(m, i):
+        return m.ports[i] <= params["ports_max"] * m.open[i]
+    m.MaxPorts = pyo.Constraint(m.I, rule=max_ports_when_closed)
+
+    # PV: min when open, 0 when closed
+    def min_pv_when_open(m, i):
+        return m.pv_kw[i] >= params["pv_kw_min"] * m.open[i]
+    m.MinPV = pyo.Constraint(m.I, rule=min_pv_when_open)
+
+    def max_pv_when_closed(m, i):
+        return m.pv_kw[i] <= params["pv_kw_max"] * m.open[i]
+    m.MaxPV = pyo.Constraint(m.I, rule=max_pv_when_closed)
+
+    # Storage: 0 when closed (min is already 0)
+    def max_storage_when_closed(m, i):
+        return m.storage_kwh[i] <= params["storage_kwh_max"] * m.open[i]
+    m.MaxStorage = pyo.Constraint(m.I, rule=max_storage_when_closed)
 
     # Spacing constraint (optional simple heuristic): do not open two sites closer than min_spacing_km
     min_spacing_km = params["min_spacing_km"]
