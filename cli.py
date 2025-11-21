@@ -13,7 +13,7 @@ from src.common.io import write_geoparquet, write_parquet
 from src.data.dataloader import DataLoader, get_dataloader
 from src.data.build_candidates import candidates_from_sources
 from src.features.engineer import engineer_features
-from src.ml.tabular_sklearn import build_pipelines, cv_and_fit, predict_with_blend, compute_shap_values, save_models
+from src.ml.tabular_sklearn import build_pipelines, cv_and_fit, predict_with_blend, compute_shap_values, save_models, load_models
 from src.energy.pvwatts import size_pv_for_fraction
 from src.opt.facility_milp import build_milp, solve_milp
 from src.opt.postsolve import extract_solution
@@ -152,6 +152,40 @@ def train(
 
 
 @app.command()
+def predict(input_path: str = "data/processed/features.parquet"):
+    """Apply trained models to new data without retraining."""
+    models_path = Path("artifacts/models/ensemble.joblib")
+
+    if not models_path.exists():
+        typer.echo("No trained models found. Run 'train' first.")
+        raise typer.Exit(1)
+
+    typer.echo("Loading trained models...")
+    fitted = load_models(str(models_path))
+
+    # Load input data
+    if not Path(input_path).exists():
+        typer.echo(f"Input file not found: {input_path}")
+        raise typer.Exit(1)
+
+    F = gpd.read_parquet(input_path)
+    typer.echo(f"Loaded {len(F)} candidates from {input_path}")
+
+    # Prepare features
+    num_cols = ["aadt_sum_500m", "aadt_sum_1500m", "aadt_sum_5000m", "dist_m_nearest_dcfc"]
+    X = F[num_cols].copy().fillna(0)
+
+    # Predict
+    F["pred_daily_kwh"] = predict_with_blend(fitted, X)
+    typer.echo(f"Predictions: mean={F['pred_daily_kwh'].mean():.1f}, range=[{F['pred_daily_kwh'].min():.1f}, {F['pred_daily_kwh'].max():.1f}]")
+
+    # Save
+    output_path = "data/processed/features_scored.parquet"
+    write_geoparquet(F, output_path)
+    typer.echo(f"Scored features -> {output_path}")
+
+
+@app.command()
 def pvsize(config_path: str = "configs/default.yaml"):
     """Size PV systems using PVWatts API."""
     cfg = load_yaml(config_path)
@@ -252,29 +286,37 @@ def optimize(config_path: str = "configs/default.yaml"):
 @app.command()
 def run_all(
     config_path: str = "configs/default.yaml",
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    retrain: bool = False
 ):
-    """Run complete pipeline: load -> candidates -> features -> train -> pvsize -> optimize."""
+    """Run complete pipeline: load -> candidates -> features -> train/predict -> pvsize -> optimize."""
     typer.echo("=== Running Complete Pipeline ===\n")
-    
+
     typer.echo("Step 1/6: Loading data...")
     load_data(config_path, force_refresh)
-    
+
     typer.echo("\nStep 2/6: Building candidates...")
     make_candidates(config_path)
-    
+
     typer.echo("\nStep 3/6: Engineering features...")
     features(config_path)
-    
-    typer.echo("\nStep 4/6: Training ML models...")
-    train(save_shap=True, retrain=True)
-    
+
+    # Check if models exist
+    models_exist = Path("artifacts/models/ensemble.joblib").exists()
+
+    if retrain or not models_exist:
+        typer.echo("\nStep 4/6: Training ML models...")
+        train(save_shap=True, retrain=True)
+    else:
+        typer.echo("\nStep 4/6: Applying trained models (use --retrain to force retraining)...")
+        predict()
+
     typer.echo("\nStep 5/6: Sizing PV systems...")
     pvsize(config_path)
-    
+
     typer.echo("\nStep 6/6: Running optimization...")
     optimize(config_path)
-    
+
     typer.echo("\n=== Pipeline Complete ===")
 
 

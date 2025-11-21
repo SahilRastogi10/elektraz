@@ -119,12 +119,37 @@ def build_milp(cands: pd.DataFrame,
     return m
 
 def solve_milp(model: pyo.ConcreteModel, solver_name="highs", time_limit_s=600, mip_gap=0.01):
-    if solver_name.lower()=="highs":
-        solver = pyo.SolverFactory("highs")
+    # Try to use requested solver with automatic fallback
+    solver = None
+    actual_solver = solver_name.lower()
+
+    if actual_solver == "highs":
+        try:
+            solver = pyo.SolverFactory("highs")
+            if not solver.available():
+                print("Warning: HiGHS not available, falling back to CBC solver")
+                actual_solver = "cbc"
+                solver = None
+        except Exception:
+            print("Warning: HiGHS failed to load, falling back to CBC solver")
+            actual_solver = "cbc"
+
+    if actual_solver == "highs" and solver is not None:
         solver.options["time_limit"] = time_limit_s
         solver.options["mip_rel_gap"] = mip_gap
     else:
+        # Use CBC as fallback
         solver = pyo.SolverFactory("cbc")
+        if not solver.available():
+            # Try GLPK as last resort
+            solver = pyo.SolverFactory("glpk")
+            if not solver.available():
+                raise ValueError(
+                    "No MILP solver available. Install one of:\n"
+                    "  - pip install highspy (recommended)\n"
+                    "  - conda install -c conda-forge coincbc\n"
+                    "  - apt-get install glpk-utils"
+                )
         solver.options["seconds"] = time_limit_s
         solver.options["ratioGap"] = mip_gap
 

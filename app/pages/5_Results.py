@@ -149,7 +149,11 @@ with tab3:
     with col2:
         st.markdown("**Storage Capacity**")
         if "storage_kwh" in selected.columns:
-            st.bar_chart(selected[["storage_kwh"]].sort_values("storage_kwh"))
+            storage_sum = selected["storage_kwh"].sum()
+            if storage_sum > 0:
+                st.bar_chart(selected[["storage_kwh"]].sort_values("storage_kwh"))
+            else:
+                st.info("No storage allocated. The optimizer minimizes cost; storage adds cost without improving the objective. Consider adding storage incentives or setting storage_kwh_min > 0 in configuration.")
         
         st.markdown("**Predicted Daily Demand**")
         if "pred_daily_kwh" in selected.columns:
