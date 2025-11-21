@@ -73,7 +73,8 @@ class DataLoader:
                 name="nfhl",
                 url=d.get("nfhl_url", "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"),
                 source_type="arcgis",
-                description="FEMA Flood Hazard Zones"
+                description="FEMA Flood Hazard Zones",
+                required=False  # FEMA server often times out on full queries
             ),
             "park_ride": DataSource(
                 name="park_ride",
