@@ -26,7 +26,8 @@ data:
   afdc_url: "https://developer.nrel.gov/api/alt-fuel-stations/v1.json"
 
   # FEMA National Flood Hazard Layer (NFHL): flood hazard polygons
-  nfhl_url: "https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28"
+  # Note: URL updated from /gis/nfhl to /arcgis as of Sept 2024
+  nfhl_url: "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"
 
   # Valley Metro Park & Ride (ArcGIS FeatureServer): good public host candidates
   valley_metro_pr_url: "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Park_and_Ride/FeatureServer/0"
