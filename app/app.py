@@ -179,7 +179,7 @@ def main():
                 "Records": len(data[name]) if name in data else 0
             })
         
-        st.dataframe(pd.DataFrame(status_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(status_data), width='stretch', hide_index=True)
     
     with tab2:
         st.subheader("Site Locations")
@@ -270,7 +270,9 @@ def main():
             
             if "aadt_sum_1500m" in cands.columns:
                 st.markdown("**AADT Density (1500m radius)**")
-                st.bar_chart(pd.cut(cands["aadt_sum_1500m"], bins=10).value_counts().sort_index())
+                hist_data = pd.cut(cands["aadt_sum_1500m"], bins=10).value_counts().sort_index()
+                hist_data.index = hist_data.index.astype(str)
+                st.bar_chart(hist_data)
             
             if "pred_daily_kwh" in cands.columns:
                 st.markdown("**Predicted Daily kWh**")

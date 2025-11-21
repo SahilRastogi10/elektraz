@@ -145,9 +145,12 @@ if show_candidates and "candidates" in data:
         vmin, vmax = values.min(), values.max()
         
         def get_color(val):
-            if vmax == vmin:
+            if pd.isna(val) or vmax == vmin:
                 return "blue"
             norm = (val - vmin) / (vmax - vmin)
+            # Handle edge cases where norm could be NaN or out of range
+            if pd.isna(norm) or norm < 0 or norm > 1:
+                return "blue"
             # Blue to red gradient
             r = int(255 * norm)
             b = int(255 * (1 - norm))

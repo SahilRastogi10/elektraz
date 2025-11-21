@@ -84,9 +84,9 @@ with tab1:
     selected_cols = st.multiselect("Select columns to display", all_cols, default=default_cols)
     
     if selected_cols:
-        st.dataframe(df[selected_cols].head(100), use_container_width=True)
+        st.dataframe(df[selected_cols].head(100), width='stretch')
     else:
-        st.dataframe(df.drop(columns=["geometry"], errors="ignore").head(100), use_container_width=True)
+        st.dataframe(df.drop(columns=["geometry"], errors="ignore").head(100), width='stretch')
     
     # Download
     csv = df.drop(columns=["geometry"], errors="ignore").to_csv(index=False)
@@ -100,7 +100,7 @@ with tab2:
     if numeric_cols:
         stats = df[numeric_cols].describe().T
         stats["null_pct"] = (df[numeric_cols].isnull().sum() / len(df) * 100).values
-        st.dataframe(stats, use_container_width=True)
+        st.dataframe(stats, width='stretch')
     else:
         st.info("No numeric columns found")
     
@@ -112,7 +112,7 @@ with tab2:
         "Non-Null": df.notnull().sum().values,
         "Null %": (df.isnull().sum() / len(df) * 100).round(2).values
     })
-    st.dataframe(dtypes, use_container_width=True, hide_index=True)
+    st.dataframe(dtypes, width='stretch', hide_index=True)
 
 with tab3:
     st.subheader("Filter Data")
@@ -138,7 +138,7 @@ with tab3:
                     filtered = df
         
         st.metric("Filtered rows", len(filtered))
-        st.dataframe(filtered.drop(columns=["geometry"], errors="ignore").head(100), use_container_width=True)
+        st.dataframe(filtered.drop(columns=["geometry"], errors="ignore").head(100), width='stretch')
     else:
         st.info("Select a column to filter")
 
@@ -155,7 +155,9 @@ with tab4:
         with col1:
             hist_col = st.selectbox("Histogram column", numeric_cols)
             if hist_col:
-                st.bar_chart(pd.cut(df[hist_col].dropna(), bins=20).value_counts().sort_index())
+                hist_data = pd.cut(df[hist_col].dropna(), bins=20).value_counts().sort_index()
+                hist_data.index = hist_data.index.astype(str)
+                st.bar_chart(hist_data)
         
         with col2:
             if len(numeric_cols) >= 2:
