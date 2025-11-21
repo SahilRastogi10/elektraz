@@ -13,3 +13,5 @@ dist/
 coverage/
 *.sqlite3
 *.db
+*.parquet
+data_cache.sqlite
