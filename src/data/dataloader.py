@@ -4,6 +4,7 @@
 import os
 import time
 import hashlib
+import logging
 from pathlib import Path
 from typing import Dict, Optional, Any
 from dataclasses import dataclass, field
@@ -11,10 +12,13 @@ import pandas as pd
 import geopandas as gpd
 import requests
 import requests_cache
+from requests.exceptions import ConnectionError, Timeout, RequestException
 from datetime import datetime, timedelta
 
 from src.common.config import AppSettings, load_yaml
 from src.common.io import write_geoparquet, write_parquet
+
+logger = logging.getLogger(__name__)
 
 
 # Install request cache for efficiency
@@ -98,7 +102,51 @@ class DataLoader:
         }
         
         return sources
-    
+
+    def _request_with_retry(self, method: str, url: str, max_retries: int = 4,
+                            initial_delay: float = 2.0, **kwargs) -> requests.Response:
+        """Make HTTP request with exponential backoff retry logic.
+
+        Args:
+            method: HTTP method (get, post, etc.)
+            url: URL to request
+            max_retries: Maximum number of retry attempts
+            initial_delay: Initial delay in seconds (doubles each retry)
+            **kwargs: Additional arguments passed to requests
+
+        Returns:
+            Response object
+
+        Raises:
+            RequestException: If all retries fail
+        """
+        last_exception = None
+        delay = initial_delay
+
+        for attempt in range(max_retries + 1):
+            try:
+                response = getattr(requests, method)(url, **kwargs)
+                response.raise_for_status()
+                return response
+            except (ConnectionError, Timeout) as e:
+                last_exception = e
+                if attempt < max_retries:
+                    logger.warning(
+                        f"Request failed (attempt {attempt + 1}/{max_retries + 1}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"Request failed after {max_retries + 1} attempts: {e}")
+            except RequestException as e:
+                # Non-retryable errors (4xx, 5xx that aren't connection issues)
+                last_exception = e
+                logger.error(f"Request failed with non-retryable error: {e}")
+                raise
+
+        raise last_exception
+
     def get_cache_path(self, source_name: str) -> Path:
         """Get cache file path for a source."""
         return self.cache_dir / f"{source_name}.parquet"
@@ -142,7 +190,7 @@ class DataLoader:
     def load_arcgis(self, url: str, where: str = "1=1", out_sr: int = 4326) -> gpd.GeoDataFrame:
         """Load data from ArcGIS FeatureServer."""
         feats, offset, page = [], 0, 2000
-        
+
         while True:
             params = {
                 "where": where,
@@ -153,15 +201,14 @@ class DataLoader:
                 "resultOffset": offset,
                 "resultRecordCount": page,
             }
-            r = requests.get(f"{url}/query", params=params, timeout=120)
-            r.raise_for_status()
+            r = self._request_with_retry("get", f"{url}/query", params=params, timeout=120)
             js = r.json()
             batch = js.get("features", [])
             if not batch:
                 break
             feats.extend(batch)
             offset += page
-        
+
         if feats:
             return gpd.GeoDataFrame.from_features(feats, crs=f"EPSG:{out_sr}")
         return gpd.GeoDataFrame(geometry=[], crs=f"EPSG:{out_sr}")
@@ -173,9 +220,8 @@ class DataLoader:
             "limit": 20000,
             **params
         }
-        
-        r = requests.get(url, params=api_params, timeout=90)
-        r.raise_for_status()
+
+        r = self._request_with_retry("get", url, params=api_params, timeout=90)
         stations = r.json().get("fuel_stations", [])
         
         if not stations:
@@ -221,9 +267,8 @@ class DataLoader:
         
         if self.env.CENSUS_API_KEY:
             params["key"] = self.env.CENSUS_API_KEY
-        
-        r = requests.get(url, params=params, timeout=90)
-        r.raise_for_status()
+
+        r = self._request_with_retry("get", url, params=params, timeout=90)
         rows = r.json()
         header, data = rows[0], rows[1:]
         
@@ -237,9 +282,8 @@ class DataLoader:
         """Load data from zipped CSV."""
         import io
         import zipfile
-        
-        r = requests.get(url, stream=True, timeout=180)
-        r.raise_for_status()
+
+        r = self._request_with_retry("get", url, stream=True, timeout=180)
         
         zf = zipfile.ZipFile(io.BytesIO(r.content))
         csv_files = [n for n in zf.namelist() if n.lower().endswith(".csv")]
@@ -253,9 +297,9 @@ class DataLoader:
         source = self.sources.get(source_name)
         if not source:
             raise ValueError(f"Unknown source: {source_name}")
-        
+
         cache_path = self.get_cache_path(source_name)
-        
+
         # Use cache if available and fresh
         if not force_refresh and self.is_cached(source_name):
             try:
@@ -265,7 +309,7 @@ class DataLoader:
                     return pd.read_parquet(cache_path)
             except Exception:
                 pass  # Fall through to fetch
-        
+
         # Fetch data
         start_time = time.time()
         try:
@@ -279,13 +323,13 @@ class DataLoader:
                 data = self.load_csv_zip(source.url)
             else:
                 raise ValueError(f"Unknown source type: {source.source_type}")
-            
+
             # Cache
             if isinstance(data, gpd.GeoDataFrame):
                 write_geoparquet(data, cache_path)
             else:
                 write_parquet(data, cache_path)
-            
+
             elapsed = time.time() - start_time
             self.load_status[source_name] = {
                 "status": "success",
@@ -293,9 +337,46 @@ class DataLoader:
                 "elapsed_s": elapsed,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             return data
-            
+
+        except (ConnectionError, Timeout, RequestException) as e:
+            # Network error - try to fall back to cached data (even if stale)
+            if cache_path.exists():
+                logger.warning(
+                    f"Network error loading '{source_name}': {e}. "
+                    f"Falling back to cached data."
+                )
+                try:
+                    if source.source_type in ["arcgis", "nrel_afdc"]:
+                        data = gpd.read_parquet(cache_path)
+                    else:
+                        data = pd.read_parquet(cache_path)
+
+                    self.load_status[source_name] = {
+                        "status": "cached_fallback",
+                        "rows": len(data),
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    return data
+                except Exception as cache_error:
+                    logger.error(f"Failed to load cached data: {cache_error}")
+
+            # No cache available - report error
+            error_msg = (
+                f"Failed to load '{source_name}' from {source.url}: {e}. "
+                f"No cached data available. Please check your network connection."
+            )
+            self.load_status[source_name] = {
+                "status": "error",
+                "error": error_msg,
+                "timestamp": datetime.now().isoformat()
+            }
+            if source.required:
+                raise ConnectionError(error_msg) from e
+            return None
+
         except Exception as e:
             self.load_status[source_name] = {
                 "status": "error",
