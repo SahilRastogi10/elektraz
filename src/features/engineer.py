@@ -13,18 +13,25 @@ def _vectorized_nearest_distance(source_geom: gpd.GeoSeries, target_gdf: gpd.Geo
     """Calculate nearest distance from each source point to target geometries efficiently."""
     if target_gdf is None or len(target_gdf) == 0:
         return np.full(len(source_geom), np.nan)
-    
+
     target_sindex = target_gdf.sindex
     distances = []
-    
+
     for geom in source_geom:
-        nearest_idx = list(target_sindex.nearest(geom, 5))
-        if nearest_idx:
-            min_dist = target_gdf.iloc[nearest_idx].distance(geom).min()
+        # New geopandas API: nearest returns (input_indices, target_indices)
+        result = target_sindex.nearest(geom)
+        if hasattr(result, '__len__') and len(result) == 2:
+            # New API returns tuple of arrays
+            target_indices = result[1]
+            if len(target_indices) > 0:
+                min_dist = target_gdf.iloc[target_indices].distance(geom).min()
+            else:
+                min_dist = np.nan
         else:
+            # Fallback for older API or unexpected result
             min_dist = target_gdf.distance(geom).min() if len(target_gdf) > 0 else np.nan
         distances.append(min_dist)
-    
+
     return np.array(distances)
 
 
