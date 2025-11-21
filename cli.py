@@ -124,9 +124,23 @@ def train(
     F["daily_kwh"] = F["daily_kwh"].clip(10, 500)
     y = F["daily_kwh"].values
     
-    num_cols = ["aadt_sum_500m", "aadt_sum_1500m", "aadt_sum_5000m", "dist_m_nearest_dcfc"]
+    # Use all available numeric features for better predictions
+    all_num_cols = [
+        "aadt_sum_500m", "aadt_sum_1500m", "aadt_sum_5000m",
+        "dist_m_nearest_dcfc", "dist_m_nearest_station",
+        "equity_score", "safety_score", "grid_conflict_score",
+        "accessibility_score", "x", "y"
+    ]
+    # Filter to only columns that exist in the dataframe
+    num_cols = [c for c in all_num_cols if c in F.columns]
+    typer.echo(f"Training with {len(num_cols)} features: {num_cols}")
+
     X = F[num_cols].copy().fillna(0)
-    
+
+    # Save feature names for inference
+    models_path.mkdir(parents=True, exist_ok=True)
+    pd.Series(num_cols).to_json(models_path / "feature_cols.json")
+
     pipes = build_pipelines(num_cols=num_cols, cat_cols=[])
     results, fitted = cv_and_fit(X, y, pipes, folds=5, seed=42)
     
@@ -154,7 +168,9 @@ def train(
 @app.command()
 def predict(input_path: str = "data/processed/features.parquet"):
     """Apply trained models to new data without retraining."""
-    models_path = Path("artifacts/models/ensemble.joblib")
+    models_dir = Path("artifacts/models")
+    models_path = models_dir / "ensemble.joblib"
+    feature_cols_path = models_dir / "feature_cols.json"
 
     if not models_path.exists():
         typer.echo("No trained models found. Run 'train' first.")
@@ -162,6 +178,15 @@ def predict(input_path: str = "data/processed/features.parquet"):
 
     typer.echo("Loading trained models...")
     fitted = load_models(str(models_path))
+
+    # Load feature column names
+    if feature_cols_path.exists():
+        num_cols = pd.read_json(feature_cols_path, typ='series').tolist()
+        typer.echo(f"Using {len(num_cols)} features from training")
+    else:
+        # Fallback for backward compatibility
+        num_cols = ["aadt_sum_500m", "aadt_sum_1500m", "aadt_sum_5000m", "dist_m_nearest_dcfc"]
+        typer.echo("Warning: feature_cols.json not found, using default 4 features")
 
     # Load input data
     if not Path(input_path).exists():
@@ -171,8 +196,14 @@ def predict(input_path: str = "data/processed/features.parquet"):
     F = gpd.read_parquet(input_path)
     typer.echo(f"Loaded {len(F)} candidates from {input_path}")
 
-    # Prepare features
-    num_cols = ["aadt_sum_500m", "aadt_sum_1500m", "aadt_sum_5000m", "dist_m_nearest_dcfc"]
+    # Prepare features (filter to available columns)
+    available_cols = [c for c in num_cols if c in F.columns]
+    if len(available_cols) < len(num_cols):
+        missing = set(num_cols) - set(available_cols)
+        typer.echo(f"Warning: Missing features {missing}, filling with 0")
+        for col in missing:
+            F[col] = 0.0
+
     X = F[num_cols].copy().fillna(0)
 
     # Predict

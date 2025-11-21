@@ -147,14 +147,26 @@ with tab2:
                     st.error(f"Failed: {result.stderr}")
     
     with col2:
-        if st.button("🤖 4. Train ML Models"):
+        if st.button("🤖 4a. Train ML Models"):
             with st.spinner("Training models..."):
                 result = subprocess.run(
-                    ["python", "cli.py", "train", "--save-shap"],
+                    ["python", "cli.py", "train", "--save-shap", "--retrain"],
                     capture_output=True, text=True
                 )
                 if result.returncode == 0:
                     st.success("ML training complete!")
+                    st.code(result.stdout)
+                else:
+                    st.error(f"Failed: {result.stderr}")
+
+        if st.button("🔮 4b. Predict (use trained models)"):
+            with st.spinner("Running predictions..."):
+                result = subprocess.run(
+                    ["python", "cli.py", "predict"],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    st.success("Predictions complete!")
                     st.code(result.stdout)
                 else:
                     st.error(f"Failed: {result.stderr}")
