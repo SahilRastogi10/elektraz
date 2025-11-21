@@ -36,9 +36,7 @@ data:
   valley_metro_pr_url: "https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer/0"
 
   # EPA EJSCREEN (CSV ZIP): statewide equity/indicators (optional; not required by base CLI)
-  # Note: EPA EJScreen tool discontinued Feb 2025; using Zenodo archive for reliability
-  # Alternative: "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"
-  ejscreen_csv_zip: "https://zenodo.org/records/14767363/files/EJSCREEN_2024_StatePctile.csv.zip"
+  ejscreen_csv_zip: "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"
 
   # TIGERWeb ZCTA layer (ArcGIS): ZIP code tabulation areas (optional)
   zcta_layer_url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/86"
