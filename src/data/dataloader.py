@@ -60,12 +60,14 @@ class DataLoader:
         """Initialize data sources from config."""
         d = self.config.get("data", {})
         
+        # Use ArcGIS Online hosted service as primary (maps.azdot.gov often unavailable)
+        # Alternative: "https://maps.azdot.gov/arcgis/rest/services/Traffic/AADT_2024/FeatureServer/0"
         sources = {
             "adot_aadt": DataSource(
                 name="adot_aadt",
-                url=d.get("adot_aadt_url", "https://maps.azdot.gov/arcgis/rest/services/Traffic/AADT_2024/FeatureServer/0"),
+                url=d.get("adot_aadt_url", "https://services6.arcgis.com/clPWQMwZfdWn4MQZ/arcgis/rest/services/AADT_2020_gdb/FeatureServer/0"),
                 source_type="arcgis",
-                description="ADOT Traffic Volumes (AADT 2024)"
+                description="ADOT Traffic Volumes (AADT)"
             ),
             "nfhl": DataSource(
                 name="nfhl",
