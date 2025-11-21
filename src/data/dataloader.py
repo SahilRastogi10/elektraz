@@ -218,15 +218,35 @@ class DataLoader:
         return gpd.GeoDataFrame(geometry=[], crs=f"EPSG:{out_sr}")
     
     def load_nrel_afdc(self, url: str, params: Dict) -> gpd.GeoDataFrame:
-        """Load EV stations from NREL AFDC API."""
-        api_params = {
-            "api_key": self.env.NREL_API_KEY or "DEMO_KEY",
-            "limit": 20000,
-            **params
-        }
+        """Load EV stations from NREL AFDC API with pagination."""
+        all_stations = []
+        offset = 0
+        limit = 200  # NREL API default limit, avoid 422 errors with large limits
 
-        r = self._request_with_retry("get", url, params=api_params, timeout=90)
-        stations = r.json().get("fuel_stations", [])
+        while True:
+            api_params = {
+                "api_key": self.env.NREL_API_KEY or "DEMO_KEY",
+                "limit": limit,
+                "offset": offset,
+                **params
+            }
+
+            r = self._request_with_retry("get", url, params=api_params, timeout=90)
+            data = r.json()
+            stations = data.get("fuel_stations", [])
+
+            if not stations:
+                break
+
+            all_stations.extend(stations)
+            offset += limit
+
+            # Check if we got all results
+            total = data.get("total_results", 0)
+            if offset >= total:
+                break
+
+        stations = all_stations
         
         if not stations:
             return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
