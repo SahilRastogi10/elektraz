@@ -68,7 +68,9 @@ def build_milp(cands: pd.DataFrame,
     m.AssignFeasible = pyo.Constraint(m.I, m.J, rule=assign_feasible)
 
     def assign_sum(m, j):
-        return sum(m.assign[i,j] for i in m.I) == 1.0
+        # Use <= 1 instead of == 1 to allow demand nodes without nearby sites
+        # to remain unassigned (prevents infeasibility when no site is within max_detour)
+        return sum(m.assign[i,j] for i in m.I) <= 1.0
     m.AssignSum = pyo.Constraint(m.J, rule=assign_sum)
 
     # Station capacity sanity: predicted load per site vs total kW capacity
@@ -104,5 +106,33 @@ def solve_milp(model: pyo.ConcreteModel, solver_name="highs", time_limit_s=600, 
         solver = pyo.SolverFactory("cbc")
         solver.options["seconds"] = time_limit_s
         solver.options["ratioGap"] = mip_gap
-    result = solver.solve(model, tee=False)
+
+    # Solve with load_solutions=False to handle infeasibility gracefully
+    result = solver.solve(model, tee=False, load_solutions=False)
+
+    # Check termination condition and handle infeasibility
+    from pyomo.opt import TerminationCondition, SolutionStatus
+
+    if result.solver.termination_condition == TerminationCondition.infeasible:
+        raise ValueError(
+            "MILP model is infeasible. This typically occurs when:\n"
+            "  - min_spacing_km is too large relative to candidate site density\n"
+            "  - max_detour_m is too small (no sites within reach of some demand nodes)\n"
+            "  - budget_usd is too low to open any valid configuration\n"
+            "Consider adjusting these parameters in your config file."
+        )
+    elif result.solver.termination_condition == TerminationCondition.unbounded:
+        raise ValueError("MILP model is unbounded. Check objective function weights.")
+    elif len(result.solution) > 0 and result.solution(0).status == SolutionStatus.optimal:
+        # Load the solution into the model
+        model.solutions.load_from(result)
+    elif len(result.solution) > 0:
+        # Load feasible (possibly suboptimal) solution
+        model.solutions.load_from(result)
+    else:
+        raise ValueError(
+            f"Solver failed with termination condition: {result.solver.termination_condition}. "
+            "No solution found."
+        )
+
     return result
