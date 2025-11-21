@@ -71,7 +71,7 @@ class DataLoader:
             ),
             "nfhl": DataSource(
                 name="nfhl",
-                url=d.get("nfhl_url", "https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28"),
+                url=d.get("nfhl_url", "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"),
                 source_type="arcgis",
                 description="FEMA Flood Hazard Zones"
             ),
