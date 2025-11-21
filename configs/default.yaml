@@ -1,0 +1,89 @@
+project_name: az-ev-solar
+random_seed: 42
+
+crs:
+  wgs84: 4326
+  utm12: 26912
+
+paths:
+  # raw is kept for compatibility but not used when pulling remote sources
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  artifacts: artifacts
+
+data:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # REMOTE SOURCES (used by `cli.py ingest_remote`)
+  # Edit these to point at your preferred public layers.
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # ADOT AADT (ArcGIS FeatureServer): statewide traffic volumes
+  adot_aadt_url: "https://maps.azdot.gov/arcgis/rest/services/Traffic/AADT_2024/FeatureServer/0"
+
+  # DOE/NREL AFDC station locator (API): public EV charging stations in AZ
+  afdc_url: "https://developer.nrel.gov/api/alt-fuel-stations/v1.json"
+
+  # FEMA National Flood Hazard Layer (NFHL): flood hazard polygons
+  nfhl_url: "https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28"
+
+  # Valley Metro Park & Ride (ArcGIS FeatureServer): good public host candidates
+  valley_metro_pr_url: "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Park_and_Ride/FeatureServer/0"
+
+  # EPA EJSCREEN (CSV ZIP): statewide equity/indicators (optional; not required by base CLI)
+  ejscreen_csv_zip: "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"
+
+  # TIGERWeb ZCTA layer (ArcGIS): ZIP code tabulation areas (optional)
+  zcta_layer_url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/86"
+
+  # Buffer used for NFHL intersect checks (meters)
+  nfhl_buffer_m: 30
+
+ml:
+  label: daily_kwh  # target for training (proxy/derived)
+  folds: 5
+  models: [xgb, lgbm, cat]
+  use_torch: true
+  torch_max_epochs: 50
+  torch_patience: 5
+  shap_sample: 5000
+
+features:
+  buffer_m: [500, 1500, 5000]
+  aadt_radius_m: 500
+  pop_radius_m: 5000
+  poi_text_topk: 20
+
+pv:
+  pvwatts_system_defaults:
+    module_type: 1      # standard
+    array_type: 2       # fixed open rack
+    losses: 14          # %
+    tilt: 15
+    azimuth: 180
+  pv_sizing_target_fraction: 0.6   # fraction of annual DCFC energy to offset by PV
+
+opt:
+  budget_usd: 15000000        # adjust in tariffs.yaml
+  max_sites: 40
+  min_spacing_km: 50
+  nevi_exit_buffer_m: 1600
+  max_detour_m: 1600
+  port_power_kw: 150
+  ports_min: 4
+  ports_max: 8
+  pv_kw_min: 50
+  pv_kw_max: 300
+  storage_kwh_min: 0
+  storage_kwh_max: 500
+  weights:
+    util: 1.0
+    equity: 0.25
+    safety_penalty: 0.5
+    grid_penalty: 0.3
+    npc_cost: 0.8
+
+solver:
+  name: highs  # highs | cbc
+  time_limit_s: 600
+  mip_gap: 0.01

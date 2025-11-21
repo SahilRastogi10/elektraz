@@ -1,0 +1,10 @@
+tariffs:
+  APS:
+    energy_c_per_kwh: { offpeak: 10, onpeak: 18 }
+    demand_usd_per_kw: 14
+  SRP:
+    energy_c_per_kwh: { offpeak: 9, onpeak: 16 }
+    demand_usd_per_kw: 12
+  TEP:
+    energy_c_per_kwh: { offpeak: 11, onpeak: 19 }
+    demand_usd_per_kw: 15
