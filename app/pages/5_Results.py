@@ -92,7 +92,7 @@ with tab1:
     
     st.dataframe(
         selected[available_cols].round(2),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
     
@@ -110,7 +110,7 @@ with tab2:
         
         st.dataframe(
             selected[econ_cols].round(2),
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
         

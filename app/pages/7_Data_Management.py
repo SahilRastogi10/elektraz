@@ -40,11 +40,11 @@ with tab1:
             return "background-color: #FFB6C1"
         return ""
     
-    styled_df = status_df.style.applymap(
+    styled_df = status_df.style.map(
         color_status, subset=["Cached"]
     )
-    
-    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+    st.dataframe(styled_df, width='stretch', hide_index=True)
     
     # Source details
     st.markdown("---")

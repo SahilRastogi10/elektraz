@@ -73,7 +73,7 @@ with tab1:
             
             # Table
             with st.expander("View all features"):
-                st.dataframe(importance_df, use_container_width=True, hide_index=True)
+                st.dataframe(importance_df, width='stretch', hide_index=True)
     else:
         st.info("SHAP importance not computed. Re-run training with --save-shap flag.")
         
@@ -129,7 +129,7 @@ with tab2:
         
         with col1:
             st.markdown("#### Top Important Features")
-            st.dataframe(shap_df.head(10), use_container_width=True, hide_index=True)
+            st.dataframe(shap_df.head(10), width='stretch', hide_index=True)
         
         with col2:
             st.markdown("#### Feature Impact")
@@ -167,9 +167,9 @@ with tab3:
         
         with col1:
             st.markdown("#### Prediction Distribution")
-            st.bar_chart(
-                pd.cut(features["pred_daily_kwh"], bins=20).value_counts().sort_index()
-            )
+            hist_data = pd.cut(features["pred_daily_kwh"], bins=20).value_counts().sort_index()
+            hist_data.index = hist_data.index.astype(str)
+            st.bar_chart(hist_data)
             
             st.markdown("#### Prediction Statistics")
             st.dataframe(features["pred_daily_kwh"].describe())
@@ -199,7 +199,7 @@ with tab3:
         
         st.dataframe(
             top_sites[display_cols].round(2),
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
     else:
@@ -217,7 +217,7 @@ if cv_results_path.exists():
         cv_results = json.load(f)
     
     results_df = pd.DataFrame(cv_results).T
-    st.dataframe(results_df, use_container_width=True)
+    st.dataframe(results_df, width='stretch')
 else:
     st.info("CV results not saved. The models were trained with cross-validation.")
     
@@ -231,4 +231,4 @@ else:
             "Estimators": getattr(model, "n_estimators", getattr(model, "iterations", "N/A"))
         })
     
-    st.dataframe(pd.DataFrame(comparison_data), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(comparison_data), width='stretch', hide_index=True)
