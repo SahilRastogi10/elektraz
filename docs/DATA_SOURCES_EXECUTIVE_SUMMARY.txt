@@ -1,0 +1,235 @@
+================================================================================
+DATA SOURCES VERIFICATION - EXECUTIVE SUMMARY
+Arizona EV Solar Siting Optimization Project (Elektraz)
+================================================================================
+
+DATE: 2025-11-21
+STATUS: 6 Data Sources Verified & Analyzed
+
+================================================================================
+CRITICAL FINDINGS
+================================================================================
+
+OUT OF 6 DATA SOURCES:
+  - 2 WORKING:           Census ACS, AFDC
+  - 2 BROKEN:            AADT (403), NFHL (timeout), Park & Ride (400)
+  - 2 OPTIONAL:          EJSCREEN (available but EPA discontinued)
+
+BROKEN ENDPOINTS REQUIRE IMMEDIATE ATTENTION:
+  1. NFHL (Flood) - Connection timeout to hazards.fema.gov
+  2. AADT (Traffic) - HTTP 403 Forbidden on current service
+  3. Park & Ride - HTTP 400 Bad Request on Valley Metro endpoint
+
+================================================================================
+QUICK ACTION PLAN - PRIORITY ORDER
+================================================================================
+
+PRIORITY 1 - NFHL (Flood Hazard) [EASIEST FIX]
+─────────────────────────────────────────────────────────────────────────────
+Current:  https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28
+Problem:  Connection timeout (FEMA server unreliable)
+Fix:      https://services.arcgis.com/2gdL2gxYNFY2TOUb/arcgis/rest/services/FEMA_National_Flood_Hazard_Layer/FeatureServer/0
+Impact:   FeatureServer on reliable Esri infrastructure, works immediately
+Time:     5 minutes (just update 2 config lines)
+Files:    configs/default.yaml (line 30), src/data/dataloader.py (line 74)
+
+PRIORITY 2 - AADT (Traffic Volumes) [MEDIUM DIFFICULTY]
+─────────────────────────────────────────────────────────────────────────────
+Current:  https://services6.arcgis.com/clPWQMwZfdWn4MQZ/.../AADT_2020_gdb/...
+Problem:  HTTP 403 Forbidden (IP restricted), uses old 2020 data
+Fix:      https://azgeo-open-data-agic.hub.arcgis.com/datasets/azgeo::aadt-2023-1
+Impact:   Upgrades to 2023 data, more reliable hosting
+Note:     May need to extract FeatureServer URL from AZGeo Hub webpage
+Time:     15-30 minutes
+Files:    configs/default.yaml (line 23), src/data/dataloader.py (line 68)
+
+PRIORITY 3 - Park & Ride (Transit Hubs) [MEDIUM DIFFICULTY]
+─────────────────────────────────────────────────────────────────────────────
+Current:  https://services1.arcgis.com/Hp6G80Pky0om7QvQ/.../Park_and_Ride/...
+Problem:  HTTP 400 Bad Request (endpoint may be deleted or moved)
+Fix:      https://geocenter-valleymetro.opendata.arcgis.com/datasets/valley-metro-park-and-rides
+Impact:   Official Valley Metro GeoCenter (more reliable)
+Note:     Optional data (supplementary), marked as required=False
+Fallback: https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer
+Time:     15-30 minutes
+Files:    configs/default.yaml (line 33), src/data/dataloader.py (line 81)
+
+PRIORITY 4 - EJSCREEN (Environmental Justice) [LOW]
+─────────────────────────────────────────────────────────────────────────────
+Current:  https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip
+Problem:  EPA discontinued tool (Feb 5, 2025), may affect FTP access
+Fix:      https://zenodo.org/records/14767363
+Impact:   Permanent archival location, ensures long-term access
+Note:     Optional data (marked as required=False), low priority
+Time:     5 minutes
+Files:    configs/default.yaml (line 36), src/data/dataloader.py (line 100)
+
+================================================================================
+WORKING SOURCES - NO CHANGES NEEDED
+================================================================================
+
+AFDC (EV Charging Stations) - WORKING
+Current: https://developer.nrel.gov/api/alt-fuel-stations/v1.json
+Status:  Functional, returns 200 status with valid JSON
+Key:     Requires API key (DEMO_KEY works, register at developer.nrel.gov/signup)
+Action:  Optional - register for production (free)
+
+Census ACS (Demographics) - WORKING
+Current: https://api.census.gov/data/2023/acs/acs5
+Status:  Functional, returns 200 status with valid JSON
+Key:     Optional (register at api.census.gov/data/key_signup.html for better rates)
+Action:  Optional - register for better rate limits
+
+================================================================================
+SPECIFIC URLS TO USE FOR ARIZONA
+================================================================================
+
+AADT (Traffic):
+  Primary:   AZGeo Hub 2023 - https://azgeo-open-data-agic.hub.arcgis.com/datasets/azgeo::aadt-2023-1
+  Fallback:  ADOT REST - https://azgeo.az.gov/arcgis/rest/services/adot/
+
+NFHL (Flood Hazard):
+  Primary:   ArcGIS Online - https://services.arcgis.com/2gdL2gxYNFY2TOUb/arcgis/rest/services/FEMA_National_Flood_Hazard_Layer/FeatureServer/0
+  Fallback:  FEMA - https://hazards.fema.gov/arcgis/rest/services/public/NFHL/FeatureServer/0
+
+Park & Ride (Transit):
+  Primary:   Valley Metro - https://geocenter-valleymetro.opendata.arcgis.com/datasets/valley-metro-park-and-rides
+  Fallback:  Phoenix City - https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer/0
+
+AFDC (EV Stations):
+  Primary:   NREL API - https://developer.nrel.gov/api/alt-fuel-stations/v1.json
+
+Census ACS (Demographics):
+  Primary:   Census API - https://api.census.gov/data/2023/acs/acs5
+
+EJSCREEN (Environmental Justice):
+  Primary:   Zenodo Archive - https://zenodo.org/records/14767363
+  Fallback:  EPA FTP - https://gaftp.epa.gov/EJSCREEN/2024/
+
+================================================================================
+IMPORTANT DISCOVERY - ARIZONA-SPECIFIC RESOURCES
+================================================================================
+
+AZGeo Open Data Hub (Arizona Geographic Information Council)
+  URL: https://azgeo-open-data-agic.hub.arcgis.com/
+  Contains:
+    - AADT 2023 (latest traffic data)
+    - Transit centers and routes
+    - Roads and infrastructure
+    - Other state/local datasets
+  Value: Official Arizona data hub, more reliable than scattered sources
+
+Valley Metro GeoCenter
+  URL: https://geocenter-valleymetro.opendata.arcgis.com/
+  Contains:
+    - Park and ride locations (Phoenix metro)
+    - Bus routes and stops
+    - Light rail stations
+    - Ridership data
+  Value: Official transit authority, authoritative for Phoenix area
+
+================================================================================
+API KEY RECOMMENDATIONS
+================================================================================
+
+NREL AFDC - Register FREE Key
+  Current: Works with DEMO_KEY (rate limited: 10 req/min, 1000/day)
+  Register: https://developer.nrel.gov/signup/
+  Benefit:  Higher rate limits for production deployment
+  Timeline: Optional but recommended for live deployment
+
+Census API - Register FREE Key (Optional)
+  Current: Works without key (IP-based limiting)
+  Register: https://api.census.gov/data/key_signup.html
+  Benefit:  Better rate limits (500 req/sec with key vs. limited without)
+  Timeline: Optional, only if experiencing rate limits
+
+================================================================================
+ESTIMATED EFFORT & TIMELINE
+================================================================================
+
+Quick Fix (NFHL only):                    5 minutes
+Core Fixes (NFHL + AADT + Park & Ride):   1 hour (including testing)
+Full Updates (all 6 sources):             1-2 hours (with API key registration)
+Full Testing & Validation:                2-4 hours
+
+================================================================================
+FILES TO UPDATE
+================================================================================
+
+1. configs/default.yaml
+   - Lines 23, 30, 33, 36 (4 URL changes)
+
+2. src/data/dataloader.py
+   - Lines 68, 74, 81, 100 (4 URL changes in _init_sources() method)
+
+3. .env (Optional, for API keys)
+   - NREL_API_KEY=<your_key>
+   - CENSUS_API_KEY=<your_key>
+
+================================================================================
+DOCUMENTATION PROVIDED
+================================================================================
+
+1. DATA_SOURCES_VERIFICATION_REPORT.md (19 KB)
+   - Comprehensive analysis of all 6 sources
+   - Detailed issue descriptions
+   - Working alternatives with explanations
+   - Code change templates
+   - Testing recommendations
+   - Migration checklist
+
+2. DATA_SOURCES_QUICK_REFERENCE.md (6 KB)
+   - Quick lookup table
+   - Specific URLs by priority
+   - Code snippets ready to use
+   - Testing commands
+   - Special notes
+
+3. EXECUTIVE_SUMMARY.txt (this file)
+   - High-level overview
+   - Priority action items
+   - Quick reference URLs
+   - Timeline estimates
+
+================================================================================
+NEXT STEPS RECOMMENDATION
+================================================================================
+
+IMMEDIATE (Today):
+  [ ] Review this summary and recommendations
+  [ ] Update NFHL URL (5 min fix, solves timeout issue)
+  [ ] Test NFHL endpoint with provided commands
+
+SHORT TERM (This week):
+  [ ] Update AADT URL (extract FeatureServer URL from AZGeo Hub)
+  [ ] Update Park & Ride URL (contact Valley Metro if FS URL needed)
+  [ ] Update EJSCREEN URL (switch to Zenodo)
+  [ ] Register optional API keys (NREL, Census)
+
+MEDIUM TERM (This month):
+  [ ] Test full data pipeline end-to-end
+  [ ] Update documentation/README.md
+  [ ] Commit changes with detailed messages
+  [ ] Verify all data loads successfully
+
+================================================================================
+CONTACT INFORMATION FOR FURTHER RESEARCH
+================================================================================
+
+If you need additional endpoints or verification:
+
+AZGeo Support:        https://azgeo-open-data-agic.hub.arcgis.com/
+Valley Metro Data:    https://geocenter-valleymetro.opendata.arcgis.com/
+NREL API Support:     https://developer.nrel.gov/docs/
+Census API Support:   https://www.census.gov/data/developers/
+FEMA Flood Maps:      https://www.fema.gov/flood-maps/
+
+================================================================================
+REPORT LOCATION
+================================================================================
+
+Full Report:      /home/user/elektraz/docs/DATA_SOURCES_VERIFICATION_REPORT.md
+Quick Reference:  /home/user/elektraz/docs/DATA_SOURCES_QUICK_REFERENCE.md
+
+================================================================================

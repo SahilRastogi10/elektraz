@@ -55,14 +55,19 @@ def load_data(
 def make_candidates(config_path: str = "configs/default.yaml"):
     """Build candidate sites from loaded data."""
     loader = get_dataloader(config_path)
-    
+
     # Load required data
     adot_aadt = loader.load("adot_aadt")
     pr = loader.load("park_ride")
-    
-    if adot_aadt is None or pr is None:
-        typer.echo("Required data not available. Run 'load-data' first.")
+
+    if adot_aadt is None:
+        typer.echo("Required AADT data not available. Run 'load-data' first.")
         raise typer.Exit(1)
+
+    # Create empty GeoDataFrame if park_ride not available (it's optional)
+    if pr is None:
+        typer.echo("Warning: Park & Ride data not available, continuing with AADT only")
+        pr = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
     
     cand = candidates_from_sources(
         adot_roads=adot_aadt, aadt=adot_aadt, pr_sites=pr,
@@ -78,13 +83,17 @@ def make_candidates(config_path: str = "configs/default.yaml"):
 def features(config_path: str = "configs/default.yaml"):
     """Engineer features using loaded data."""
     loader = get_dataloader(config_path)
-    
+
     # Load data
     cand = gpd.read_parquet("data/interim/candidates.parquet")
     afdc = loader.load("afdc_az")
     aadt = loader.load("adot_aadt")
     nfhl = loader.load("nfhl")
-    
+
+    # Report on optional data availability
+    if nfhl is None:
+        typer.echo("Warning: NFHL flood data not available, continuing without flood features")
+
     F = engineer_features(cand, afdc, aadt, nfhl=nfhl)
     Path("data/processed").mkdir(parents=True, exist_ok=True)
     write_geoparquet(F, "data/processed/features.parquet")

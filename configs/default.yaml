@@ -26,14 +26,19 @@ data:
   afdc_url: "https://developer.nrel.gov/api/alt-fuel-stations/v1.json"
 
   # FEMA National Flood Hazard Layer (NFHL): flood hazard polygons
-  # Note: URL updated from /gis/nfhl to /arcgis as of Sept 2024
-  nfhl_url: "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"
+  # Note: Using ArcGIS Online hosted FeatureServer for better reliability
+  # Alternative: "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28" (often times out)
+  nfhl_url: "https://services.arcgis.com/2gdL2gxYNFY2TOUb/arcgis/rest/services/FEMA_National_Flood_Hazard_Layer/FeatureServer/0"
 
-  # Valley Metro Park & Ride (ArcGIS FeatureServer): good public host candidates
-  valley_metro_pr_url: "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Park_and_Ride/FeatureServer/0"
+  # Valley Metro Park & Ride (ArcGIS MapServer): good public host candidates
+  # Note: Using Phoenix City endpoint as primary; original Valley Metro endpoint returns 400
+  # Alternative: "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Park_and_Ride/FeatureServer/0"
+  valley_metro_pr_url: "https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer/0"
 
   # EPA EJSCREEN (CSV ZIP): statewide equity/indicators (optional; not required by base CLI)
-  ejscreen_csv_zip: "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"
+  # Note: EPA EJScreen tool discontinued Feb 2025; using Zenodo archive for reliability
+  # Alternative: "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"
+  ejscreen_csv_zip: "https://zenodo.org/records/14767363/files/EJSCREEN_2024_StatePctile.csv.zip"
 
   # TIGERWeb ZCTA layer (ArcGIS): ZIP code tabulation areas (optional)
   zcta_layer_url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/86"
