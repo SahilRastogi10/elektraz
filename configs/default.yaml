@@ -19,7 +19,8 @@ data:
   # ─────────────────────────────────────────────────────────────────────────────
 
   # ADOT AADT (ArcGIS FeatureServer): statewide traffic volumes
-  adot_aadt_url: "https://maps.azdot.gov/arcgis/rest/services/Traffic/AADT_2024/FeatureServer/0"
+  # Note: maps.azdot.gov is often unreachable, using ArcGIS Online hosted alternative
+  adot_aadt_url: "https://services6.arcgis.com/clPWQMwZfdWn4MQZ/arcgis/rest/services/AADT_2020_gdb/FeatureServer/0"
 
   # DOE/NREL AFDC station locator (API): public EV charging stations in AZ
   afdc_url: "https://developer.nrel.gov/api/alt-fuel-stations/v1.json"
