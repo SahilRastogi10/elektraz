@@ -11,9 +11,3 @@ node_modules/
 dist/
 *.log
 coverage/
-*.sqlite3
-*.db
-*.parquet
-data_cache.sqlite
-*.joblib
-catboost_info/
