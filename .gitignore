@@ -15,3 +15,5 @@ coverage/
 *.db
 *.parquet
 data_cache.sqlite
+*.joblib
+catboost_info/
