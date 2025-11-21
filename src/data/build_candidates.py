@@ -29,8 +29,12 @@ def candidates_from_sources(adot_roads: gpd.GeoDataFrame,
     # 2) High AADT midpoints as candidates
     q = aadtp["AADT"].quantile(0.90)
     aadt_hi = aadtp[aadtp["AADT"]>=q].copy()
-    aadt_pts = aadt_hi.geometry.interpolate(0.5, normalized=True).copy()
-    c_aadt = gpd.GeoDataFrame({"src":"aadt_hi"}, geometry=aadt_pts, crs=aadtp.crs)
+    aadt_pts = aadt_hi.geometry.interpolate(0.5, normalized=True)
+    c_aadt = gpd.GeoDataFrame(
+        {"src": ["aadt_hi"] * len(aadt_pts)},
+        geometry=aadt_pts.values,
+        crs=aadtp.crs
+    )
 
     # 3) Snap to AFC buffer (within ~1 mi)
     afc_buf = afcp.buffer(1600)  # ~1 mile in meters

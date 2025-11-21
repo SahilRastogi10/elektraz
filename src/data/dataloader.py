@@ -98,9 +98,9 @@ class DataLoader:
             ),
             "ejscreen": DataSource(
                 name="ejscreen",
-                url=d.get("ejscreen_csv_zip", "https://zenodo.org/records/14767363/files/EJSCREEN_2024_StatePctile.csv.zip"),
+                url=d.get("ejscreen_csv_zip", "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"),
                 source_type="csv_zip",
-                description="EPA EJSCREEN Equity Indicators (Zenodo Archive)",
+                description="EPA EJSCREEN Equity Indicators",
                 required=False
             )
         }
