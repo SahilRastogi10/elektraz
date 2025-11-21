@@ -1,5 +1,5 @@
 # cli.py
-"""CLI for AZ Solar EV Siting Toolkit."""
+"""CLI for AZ Solar EV Siting Toolkit with automatic data loading."""
 
 import typer
 import os
@@ -10,79 +10,80 @@ import numpy as np
 
 from src.common.config import load_yaml, resolve_paths
 from src.common.io import write_geoparquet, write_parquet
-from src.utils.remote import read_arcgis_layer, get_afdc_az, get_acs_zcta, read_csv_zip
+from src.data.dataloader import DataLoader, get_dataloader
 from src.data.build_candidates import candidates_from_sources
 from src.features.engineer import engineer_features
 from src.ml.tabular_sklearn import build_pipelines, cv_and_fit, predict_with_blend, compute_shap_values, save_models
 from src.energy.pvwatts import size_pv_for_fraction
 from src.opt.facility_milp import build_milp, solve_milp
 from src.opt.postsolve import extract_solution
-from src.economics.costs import calculate_full_economics, aggregate_portfolio_economics, CostParameters
+from src.economics.costs import aggregate_portfolio_economics, CostParameters
 
 app = typer.Typer(help="AZ Solar EV Siting Toolkit")
 
 
 @app.command()
-def ingest_remote(config_path: str = "configs/default.yaml", year: int = 2023):
-    """Pull all base layers from web APIs and write to data/interim."""
-    cfg = resolve_paths(load_yaml(config_path))
-    d = cfg["data"]
+def load_data(
+    config_path: str = "configs/default.yaml",
+    force_refresh: bool = False,
+    source: str = None
+):
+    """Load data from configured sources (uses caching by default)."""
+    loader = get_dataloader(config_path)
     
-    typer.echo("Fetching ADOT AADT...")
-    adot_aadt = read_arcgis_layer(d["adot_aadt_url"])
+    if source:
+        typer.echo(f"Loading {source}...")
+        data = loader.load(source, force_refresh=force_refresh)
+        if data is not None:
+            typer.echo(f"  Loaded {len(data)} records")
+    else:
+        typer.echo("Loading all data sources...")
+        results = loader.load_all(force_refresh=force_refresh)
+        for name, data in results.items():
+            if data is not None:
+                typer.echo(f"  {name}: {len(data)} records")
+            else:
+                typer.echo(f"  {name}: failed or skipped")
     
-    typer.echo("Fetching NFHL flood zones...")
-    nfhl = read_arcgis_layer(d["nfhl_url"])
-    
-    typer.echo("Fetching Park & Ride locations...")
-    pr = read_arcgis_layer(d["valley_metro_pr_url"])
-    
-    typer.echo("Fetching AFDC stations...")
-    afdc = get_afdc_az()
-    
-    typer.echo("Fetching ACS ZCTA data...")
-    acs = get_acs_zcta(year=year)
-    
-    typer.echo("Fetching EJSCREEN data...")
-    try:
-        ejscreen = read_csv_zip(d["ejscreen_csv_zip"])
-    except Exception as e:
-        typer.echo(f"EJSCREEN fetch failed: {e}, continuing...")
-        ejscreen = pd.DataFrame()
-    
-    # Persist
-    write_geoparquet(adot_aadt, "data/interim/adot_aadt.parquet")
-    write_geoparquet(nfhl, "data/interim/nfhl.parquet")
-    write_geoparquet(pr, "data/interim/park_ride.parquet")
-    write_geoparquet(afdc, "data/interim/afdc_az.parquet")
-    write_parquet(acs, "data/interim/acs_zcta.parquet")
-    if len(ejscreen) > 0:
-        ejscreen.to_parquet("data/interim/ejscreen_state.parquet", index=False)
-    
-    typer.echo("Remote ingestion complete -> data/interim/*.parquet")
+    # Show status
+    typer.echo("\nData Status:")
+    status = loader.get_status()
+    typer.echo(status.to_string(index=False))
 
 
 @app.command()
 def make_candidates(config_path: str = "configs/default.yaml"):
-    """Build candidate sites from interim layers."""
-    adot_aadt = gpd.read_parquet("data/interim/adot_aadt.parquet")
-    pr = gpd.read_parquet("data/interim/park_ride.parquet")
+    """Build candidate sites from loaded data."""
+    loader = get_dataloader(config_path)
+    
+    # Load required data
+    adot_aadt = loader.load("adot_aadt")
+    pr = loader.load("park_ride")
+    
+    if adot_aadt is None or pr is None:
+        typer.echo("Required data not available. Run 'load-data' first.")
+        raise typer.Exit(1)
     
     cand = candidates_from_sources(
         adot_roads=adot_aadt, aadt=adot_aadt, pr_sites=pr,
         rest_areas=pr, afc_corridors=adot_aadt
     )
+    
+    Path("data/interim").mkdir(parents=True, exist_ok=True)
     write_geoparquet(cand, "data/interim/candidates.parquet")
     typer.echo(f"Candidates: {len(cand)} -> data/interim/candidates.parquet")
 
 
 @app.command()
-def features():
-    """Engineer features using interim layers."""
+def features(config_path: str = "configs/default.yaml"):
+    """Engineer features using loaded data."""
+    loader = get_dataloader(config_path)
+    
+    # Load data
     cand = gpd.read_parquet("data/interim/candidates.parquet")
-    afdc = gpd.read_parquet("data/interim/afdc_az.parquet")
-    aadt = gpd.read_parquet("data/interim/adot_aadt.parquet")
-    nfhl = gpd.read_parquet("data/interim/nfhl.parquet")
+    afdc = loader.load("afdc_az")
+    aadt = loader.load("adot_aadt")
+    nfhl = loader.load("nfhl")
     
     F = engineer_features(cand, afdc, aadt, nfhl=nfhl)
     Path("data/processed").mkdir(parents=True, exist_ok=True)
@@ -91,8 +92,18 @@ def features():
 
 
 @app.command()
-def train(save_shap: bool = False):
-    """Train ML models with proxy target and optionally compute SHAP."""
+def train(
+    save_shap: bool = False,
+    retrain: bool = False
+):
+    """Train ML models with proxy target."""
+    models_path = Path("artifacts/models")
+    
+    # Check if models exist
+    if models_path.exists() and (models_path / "ensemble.joblib").exists() and not retrain:
+        typer.echo("Models already trained. Use --retrain to force retraining.")
+        return
+    
     F = gpd.read_parquet("data/processed/features.parquet")
     
     # Proxy label
@@ -116,8 +127,8 @@ def train(save_shap: bool = False):
     F["pred_daily_kwh"] = predict_with_blend(fitted, X)
     
     # Save models
-    Path("artifacts/models").mkdir(parents=True, exist_ok=True)
-    save_models(fitted, "artifacts/models/ensemble.joblib")
+    models_path.mkdir(parents=True, exist_ok=True)
+    save_models(fitted, str(models_path / "ensemble.joblib"))
     
     # SHAP
     if save_shap:
@@ -125,7 +136,7 @@ def train(save_shap: bool = False):
         shap_results = compute_shap_values(fitted, X, sample_size=min(1000, len(X)))
         for name, res in shap_results.items():
             if "feature_importance" in res:
-                res["feature_importance"].to_parquet(f"artifacts/models/shap_{name}.parquet")
+                res["feature_importance"].to_parquet(models_path / f"shap_{name}.parquet")
     
     write_geoparquet(F, "data/processed/features_scored.parquet")
     typer.echo("Scored features -> data/processed/features_scored.parquet")
@@ -150,8 +161,8 @@ def pvsize(config_path: str = "configs/default.yaml"):
                 lat=r.geometry.y, lon=r.geometry.x,
                 defaults=defaults
             )
-        except Exception as e:
-            pv_kw = 100.0  # Default
+        except Exception:
+            pv_kw = 100.0
         pv_out.append(pv_kw)
     
     F["pv_kw_sized"] = pv_out
@@ -230,21 +241,24 @@ def optimize(config_path: str = "configs/default.yaml"):
 
 
 @app.command()
-def run_all(config_path: str = "configs/default.yaml"):
-    """Run complete pipeline: ingest -> candidates -> features -> train -> pvsize -> optimize."""
+def run_all(
+    config_path: str = "configs/default.yaml",
+    force_refresh: bool = False
+):
+    """Run complete pipeline: load -> candidates -> features -> train -> pvsize -> optimize."""
     typer.echo("=== Running Complete Pipeline ===\n")
     
-    typer.echo("Step 1/6: Ingesting remote data...")
-    ingest_remote(config_path)
+    typer.echo("Step 1/6: Loading data...")
+    load_data(config_path, force_refresh)
     
     typer.echo("\nStep 2/6: Building candidates...")
     make_candidates(config_path)
     
     typer.echo("\nStep 3/6: Engineering features...")
-    features()
+    features(config_path)
     
     typer.echo("\nStep 4/6: Training ML models...")
-    train(save_shap=True)
+    train(save_shap=True, retrain=True)
     
     typer.echo("\nStep 5/6: Sizing PV systems...")
     pvsize(config_path)
@@ -253,6 +267,32 @@ def run_all(config_path: str = "configs/default.yaml"):
     optimize(config_path)
     
     typer.echo("\n=== Pipeline Complete ===")
+
+
+@app.command()
+def status(config_path: str = "configs/default.yaml"):
+    """Show data and pipeline status."""
+    loader = get_dataloader(config_path)
+    
+    typer.echo("Data Sources:")
+    status_df = loader.get_status()
+    typer.echo(status_df.to_string(index=False))
+    
+    typer.echo("\nProcessed Files:")
+    for path in [
+        "data/interim/candidates.parquet",
+        "data/processed/features.parquet",
+        "data/processed/features_scored.parquet",
+        "data/processed/features_scored_pv.parquet",
+        "artifacts/reports/selected_sites.parquet",
+        "artifacts/models/ensemble.joblib"
+    ]:
+        p = Path(path)
+        if p.exists():
+            size = p.stat().st_size / (1024 * 1024)
+            typer.echo(f"  {path}: {size:.2f} MB")
+        else:
+            typer.echo(f"  {path}: not found")
 
 
 if __name__ == "__main__":
