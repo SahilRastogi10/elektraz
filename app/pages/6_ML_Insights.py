@@ -225,10 +225,11 @@ else:
     comparison_data = []
     for name, pipe in models.items():
         model = pipe.named_steps["model"]
+        estimators = getattr(model, "n_estimators", getattr(model, "iterations", None))
         comparison_data.append({
             "Model": name.upper(),
             "Type": type(model).__name__,
-            "Estimators": getattr(model, "n_estimators", getattr(model, "iterations", "N/A"))
+            "Estimators": str(estimators) if estimators is not None else "N/A"
         })
     
     st.dataframe(pd.DataFrame(comparison_data), width='stretch', hide_index=True)
