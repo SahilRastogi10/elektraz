@@ -71,16 +71,17 @@ class DataLoader:
             ),
             "nfhl": DataSource(
                 name="nfhl",
-                url=d.get("nfhl_url", "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"),
+                url=d.get("nfhl_url", "https://services.arcgis.com/2gdL2gxYNFY2TOUb/arcgis/rest/services/FEMA_National_Flood_Hazard_Layer/FeatureServer/0"),
                 source_type="arcgis",
                 description="FEMA Flood Hazard Zones",
-                required=False  # FEMA server often times out on full queries
+                required=False  # Optional - server availability varies
             ),
             "park_ride": DataSource(
                 name="park_ride",
-                url=d.get("valley_metro_pr_url", "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Park_and_Ride/FeatureServer/0"),
+                url=d.get("valley_metro_pr_url", "https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer/0"),
                 source_type="arcgis",
-                description="Valley Metro Park & Ride Locations"
+                description="Park & Ride Locations (Phoenix)",
+                required=False  # Optional - Phoenix metro area only
             ),
             "afdc_az": DataSource(
                 name="afdc_az",
@@ -97,9 +98,9 @@ class DataLoader:
             ),
             "ejscreen": DataSource(
                 name="ejscreen",
-                url=d.get("ejscreen_csv_zip", "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"),
+                url=d.get("ejscreen_csv_zip", "https://zenodo.org/records/14767363/files/EJSCREEN_2024_StatePctile.csv.zip"),
                 source_type="csv_zip",
-                description="EPA EJSCREEN Equity Indicators",
+                description="EPA EJSCREEN Equity Indicators (Zenodo Archive)",
                 required=False
             )
         }
