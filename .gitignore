@@ -11,7 +11,3 @@ node_modules/
 dist/
 *.log
 coverage/
-*.sqlite3
-*.db
-data_cache.sqlite
-data/
