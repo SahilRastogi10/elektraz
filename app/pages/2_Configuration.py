@@ -83,14 +83,14 @@ with tab2:
                           help="Higher values prioritize high-demand sites")
         w_equity = st.slider("Equity Weight", 0.0, 2.0, float(weights.get("equity", 0.25)), 0.1,
                             help="Higher values prioritize underserved areas")
+        w_cost = st.slider("Cost Weight", 0.0, 2.0, float(weights.get("npc_cost", 0.8)), 0.1,
+                          help="Higher values prioritize lower cost sites")
     
     with col2:
         w_safety = st.slider("Safety Penalty", 0.0, 2.0, float(weights.get("safety_penalty", 0.5)), 0.1,
                             help="Higher values penalize risky locations (floodplains)")
         w_grid = st.slider("Grid Conflict Penalty", 0.0, 2.0, float(weights.get("grid_penalty", 0.3)), 0.1,
                           help="Higher values penalize distance from grid infrastructure")
-        w_cost = st.slider("Cost Weight", 0.0, 2.0, float(weights.get("npc_cost", 0.8)), 0.1,
-                          help="Higher values prioritize lower cost sites")
     
     st.session_state.config["opt"]["weights"] = {
         "util": w_util,
@@ -124,12 +124,13 @@ with tab3:
                                    min_value=1, max_value=100)
         min_spacing = st.number_input("Minimum Spacing (km)", value=int(opt.get("min_spacing_km", 50)),
                                      min_value=1, max_value=200)
-    
-    with col2:
+
         st.markdown("#### Site Configuration")
         ports_min = st.number_input("Min Ports/Site", value=int(opt.get("ports_min", 4)), min_value=1)
         ports_max = st.number_input("Max Ports/Site", value=int(opt.get("ports_max", 8)), min_value=1)
         port_power = st.number_input("Port Power (kW)", value=int(opt.get("port_power_kw", 150)))
+    
+    with col2:
         
         st.markdown("#### PV & Storage Ranges")
         pv_min = st.number_input("Min PV (kW)", value=int(opt.get("pv_kw_min", 50)))

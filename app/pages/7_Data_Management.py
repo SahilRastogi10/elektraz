@@ -24,7 +24,7 @@ def init_loader():
 loader = init_loader()
 
 # Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Sources", "➕ Add Source", "🔄 Refresh Data", "🤖 Retrain Models"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Sources", "➕ Add Source", "🔄 Refresh Data", "🧠 Retrain Models"])
 
 with tab1:
     st.subheader("Configured Data Sources")
@@ -248,7 +248,7 @@ with tab4:
                 else:
                     st.error(f"Error: {result.stderr}")
         
-        if st.button("🤖 Retrain ML Models", disabled=not features_exist):
+        if st.button("🧠 Retrain ML Models", disabled=not features_exist):
             with st.spinner("Retraining models..."):
                 import subprocess
                 cmd = ["python", "cli.py", "train", "--retrain"]

@@ -626,7 +626,7 @@ Common causes and fixes:
 | Map View | 🗺️ | Interactive multi-layer maps |
 | Run Optimization | 🚀 | Execute pipeline with progress |
 | Results | 📈 | Economics and site details |
-| ML Insights | 🤖 | SHAP and feature importance |
+| ML Insights | 🧠 | SHAP and feature importance |
 | Data Management | 🔄 | Refresh and retrain |
 
 ### Key Visualizations

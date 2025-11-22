@@ -11,9 +11,9 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-st.set_page_config(page_title="ML Insights", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="ML Insights", page_icon="🧠", layout="wide")
 
-st.title("🤖 ML Model Insights")
+st.title("🧠 ML Model Insights")
 st.markdown("Explore feature importance and SHAP explanations.")
 
 # Paths
