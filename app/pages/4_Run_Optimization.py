@@ -23,10 +23,10 @@ artifacts_path = Path("artifacts/reports")
 st.subheader("Pipeline Status")
 
 steps = [
-    ("Data Ingestion", interim_path / "adot_aadt.parquet"),
+    ("Ingestion", interim_path / "adot_aadt.parquet"),
     ("Candidates", interim_path / "candidates.parquet"),
     ("Features", processed_path / "features.parquet"),
-    ("ML Training", processed_path / "features_scored.parquet"),
+    ("Training", processed_path / "features_scored.parquet"),
     ("PV Sizing", processed_path / "features_scored_pv.parquet"),
     ("Optimization", artifacts_path / "selected_sites.parquet"),
 ]
@@ -147,14 +147,26 @@ with tab2:
                     st.error(f"Failed: {result.stderr}")
     
     with col2:
-        if st.button("🤖 4. Train ML Models"):
+        if st.button("🧠 4a. Train ML Models"):
             with st.spinner("Training models..."):
                 result = subprocess.run(
-                    ["python", "cli.py", "train", "--save-shap"],
+                    ["python", "cli.py", "train", "--save-shap", "--retrain"],
                     capture_output=True, text=True
                 )
                 if result.returncode == 0:
                     st.success("ML training complete!")
+                    st.code(result.stdout)
+                else:
+                    st.error(f"Failed: {result.stderr}")
+
+        if st.button("🔮 4b. Predict (use trained models)"):
+            with st.spinner("Running predictions..."):
+                result = subprocess.run(
+                    ["python", "cli.py", "predict"],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    st.success("Predictions complete!")
                     st.code(result.stdout)
                 else:
                     st.error(f"Failed: {result.stderr}")

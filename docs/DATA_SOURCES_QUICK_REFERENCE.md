@@ -82,8 +82,10 @@ https://maps.phoenix.gov/pub/rest/services/Public/ParkAndRide/MapServer/0
 
 **Current:**
 ```
-https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip
+https://zenodo.org/api/records/14767363/files/2024.zip/content
 ```
+
+**Note:** Original EPA URL `https://gaftp.epa.gov/EJSCREEN/...` is no longer accessible.
 
 **Recommended:**
 ```

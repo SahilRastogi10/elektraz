@@ -352,8 +352,10 @@ CENSUS_API_KEY=<your_registered_key>
 
 **Current URL:**
 ```
-https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip
+https://zenodo.org/api/records/14767363/files/2024.zip/content
 ```
+
+**Note:** Original EPA URL `https://gaftp.epa.gov/EJSCREEN/...` is no longer accessible as the EJScreen directory is not visible in the public FTP listing.
 
 **Status**: Data available but EPA tool discontinued
 

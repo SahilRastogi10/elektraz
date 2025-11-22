@@ -96,15 +96,18 @@ class DataLoader:
                 source_type="census_acs",
                 description="Census ACS 5-Year ZCTA Demographics"
             ),
-            "ejscreen": DataSource(
+        }
+
+        # Only add EJSCREEN if enabled (5.2 GB download)
+        if d.get("ejscreen_enabled", False):
+            sources["ejscreen"] = DataSource(
                 name="ejscreen",
-                url=d.get("ejscreen_csv_zip", "https://gaftp.epa.gov/EJSCREEN/2024/EJSCREEN_2024_StatePctile.csv.zip"),
+                url=d.get("ejscreen_csv_zip", "https://zenodo.org/api/records/14767363/files/2024.zip/content"),
                 source_type="csv_zip",
-                description="EPA EJSCREEN Equity Indicators",
+                description="EPA EJSCREEN Equity Indicators (Zenodo Archive)",
                 required=False
             )
-        }
-        
+
         return sources
 
     def _request_with_retry(self, method: str, url: str, max_retries: int = 4,

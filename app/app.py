@@ -279,13 +279,6 @@ def main():
                 st.line_chart(cands["pred_daily_kwh"].sort_values().reset_index(drop=True))
         else:
             st.info("Run the pipeline to see statistics.")
-    
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        "Built for **2025 IISE Optimization Hackathon** | "
-        "Theme: *Electricity in and to Arizona*"
-    )
 
 
 if __name__ == "__main__":
